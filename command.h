@@ -18,11 +18,13 @@
 #include <ostream>
 #include <string>
 #include <cstdio>
+#include <vector>
 
 namespace raymii {
 
     struct CommandResult {
         std::string output;
+        std::vector<std::string> outputvector 
         int exitstatus;
         friend std::ostream &operator<<(std::ostream &os, const CommandResult &result) {
             os << "command exitstatus: " << result.exitstatus << " output: " << result.output;
@@ -30,6 +32,7 @@ namespace raymii {
         }
         bool operator==(const CommandResult &rhs) const {
             return output == rhs.output &&
+                   outputvector == rhs.outputvector &&
                    exitstatus == rhs.exitstatus;
         }
         bool operator!=(const CommandResult &rhs) const {
@@ -81,6 +84,7 @@ namespace raymii {
             int exitcode = 0;
             std::array<char, 8192> buffer{};
             std::string result;
+            std::vector<std::string> resultvector;
 #ifdef _WIN32
 #define popen _popen
 #define pclose _pclose
@@ -94,6 +98,15 @@ namespace raymii {
                 while (std::fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
                     result += buffer.data();
                 }
+                std::string row;
+                for (char c: result) {
+                    if (c == '\n'){
+                        resultvector.push_back(row);
+                        row.clear();
+                    }else{
+                        row += c;
+                    }
+                }
             } catch (...) {
                 pclose(pipe);
                 throw;
@@ -102,7 +115,7 @@ namespace raymii {
             // see e.g. https://github.com/BestImageViewer/geeqie/commit/75c7df8b96592e10f7936dc1a28983be4089578c
             int res = pclose(pipe);
             exitcode = WEXITSTATUS(res);
-            return CommandResult{result, exitcode};
+            return CommandResult{result, resultvector, exitcode};
         }
     };
 
